@@ -15,3 +15,7 @@ mbed_config.h
 *.pyc
 BUILD/
 cmake-build-debug/
+BUILD
+.mbed
+mbed-os
+COMPONENT_ism43362
