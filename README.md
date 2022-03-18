@@ -4,7 +4,7 @@
 
 [Demo影片](https://youtu.be/GKkmx6A7Pis)
 
-![截圖](./ES_HW2_Screenshot.jpg))  
+![截圖](./ES_HW2_Screenshot.jpg)
 
 ## 修改mbed_app.json
 ```javascript
