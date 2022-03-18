@@ -297,7 +297,7 @@ private:
                 }
                 printf_sem.release();
             }
-            ThisThread::sleep_for(500);
+            ThisThread::sleep_for(1000);
         }
 
         printf_sem.acquire();
