@@ -31,7 +31,7 @@
 ```
 
 ## 修改target.json
-1. 進入``./mbed-os/targets/targets.json
+1. 進入`./mbed-os/targets/targets.json`
 2. 設置`"printf_lib": "std"`以避免`printf`出現問題
 
 ## 修改main.cpp
