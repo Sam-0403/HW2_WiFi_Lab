@@ -54,9 +54,10 @@ class SocketDemo {
 2. 運行`GUI-hw2.py`
 
 ## 功能介紹
-1. `SocketDemo`中的`send_acc_sensor`每秒會傳送一次3D accelerator的資料
-2. `SocketDemo`中的`send_gyro_sensor`每秒會傳送一次3D gyroscope的資料
-3. 按下藍色按鍵可以toggle是否要傳送資料
+1. `SocketDemo`中的`send_acc_sensor`可以每秒傳送一次3D accelerator的資料
+2. `SocketDemo`中的`send_gyro_sensor`可以每秒傳送一次3D gyroscope的資料
+3. `SocketDemo`中的`send_sensor`可以每秒傳送一次3D accelerator & 3D gyroscope的資料
+4. 按下藍色按鍵可以toggle是否要傳送資料
 
 
 ## 取得當前LAN中裝置的IP
