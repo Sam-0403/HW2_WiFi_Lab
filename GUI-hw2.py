@@ -67,7 +67,7 @@ if __name__ == '__main__':
             if s == 5:
                 val_of_gyro_z.append(lis_of_sensor_data[s])
 
-        value_of_time = [dt.datetime.now() + dt.timedelta(seconds=i) for ss in range(len(val_of_acceleration_of_x))]
+        value_of_time = [dt.datetime.now() + dt.timedelta(seconds=i) for i in range(len(val_of_acceleration_of_x))]
         
         mapping_of_title = dict()
         mapping_of_title[(0,0)] = 'Acceleration of x'
