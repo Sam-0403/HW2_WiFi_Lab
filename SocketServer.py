@@ -1,92 +1,160 @@
 import socket
 import numpy as np
 import json
-import time
-import random
-import ast # string to dict
-import numpy as np
+import datetime
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation
 from collections import deque
-from matplotlib.ticker import FuncFormatter
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Array
+import sys
 
-def Animate(i):  
-    new_data = q.get()
-    print('Animate: ', new_data)
-    for i, line in enumerate(lines):
-        data[i].append(new_data[i])
-        line.set_ydata(data[i])
-    return lines
+def SensorDataParser(lis_of_sensor_data):
+    HOST = "192.168.50.197"
+    PORT = 65431
 
-def init():
-    for i, line in enumerate(lines):
-        line.set_ydata([np.nan] * len(x))
-    return lines
-
-def SensorDataParser(q):
-    # Socket config, change the HOST IP and PORT corresponding to testing-client or mbed
-    HOST_ENV = {"dev": "192.168.50.197", "local_test": "127.0.0.1"}
-    HOST = HOST_ENV["dev"] # Standard loopback interface address
-    PORT = 65431 # Port to listen on (use ports > 1023)
-
-    # Run server and data renderer
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((HOST, PORT))
-        s.listen(5) # why 5: https://ask.csdn.net/questions/684321
+        s.listen() 
         conn, addr = s.accept()
 
         with conn:
             print('Connected by', addr)
             while True:
-                sensor_data = conn.recv(1024).decode('utf8')
-                if not sensor_data: # client disconnects
-                    break
+                sensor_data = conn.recv(200).decode('utf-8')
+                print(sys.getsizeof(sensor_data))                 
                 print('Received from socket server : ', sensor_data)
-                    
-                # print received data
-                try:
-                    sensor_data = ast.literal_eval(sensor_data)
-                except:
-                    print("Fail to parse data")
-                
-                # Add next value
-                print(sensor_data)
-                q.put(list(sensor_data.values()))
+    
+                sensor_data = json.loads(sensor_data)
+                tst = dict()
+                if (type(sensor_data) != type(tst)):
+                    print("Parsing error: sensor_data now should be a dictionary.")
+                    break
+
+                lis_of_sensor_data[0] = float(sensor_data['x_a'])
+                lis_of_sensor_data[1] = float(sensor_data['y_a'])
+                lis_of_sensor_data[2] = float(sensor_data['z_a'])
+                lis_of_sensor_data[3] = float(sensor_data['x_g'])
+                lis_of_sensor_data[4] = float(sensor_data['y_g'])
+                lis_of_sensor_data[5] = float(sensor_data['z_g'])
             
-            conn.close()
-            print('client closed connection')
+            # conn.close()
+            # print('client closed connection')
 
 if __name__ == '__main__':
-    # Socket as child process asymchronously catching data
-    q = Queue()
-    p = Process(target=SensorDataParser, args=(q,))
+    lis_of_sensor_data = Array('f', 6)
+    p = Process(target=SensorDataParser, args=([lis_of_sensor_data]))
     p.start()
 
     # Matpolib config, i from 0 to 3 allows x y z sensor data input.
-    max_sample_num = 10
-    x = np.arange(0, max_sample_num)
+    # max_sample_num = 10
+    # x = np.arange(0, max_sample_num)
 
-    data = []
-    for i in range(3):
-        data.append(deque(np.zeros(max_sample_num), maxlen=max_sample_num))  # hold the last 10 values
+    # data = []
+    # for i in range(3):
+    #     data.append(deque(np.zeros(max_sample_num), maxlen=max_sample_num))  # hold the last 10 values
 
-    ylim_low = [-500, -500, 0]
-    ylim_up = [500, 500, 1500]
-    lines = []
-    fig, axes = plt.subplots(3)
-    for i, ax in enumerate(axes):
-        ax.set_ylim(ylim_low[i], ylim_up[i])
-        ax.set_xlim(0, max_sample_num)
-        l, = ax.plot(x, np.zeros(max_sample_num))
-        lines.append(l)
-        ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: '{:.0f}s'.format(max_sample_num - x - 1))) #axis format
-    plt.xlabel('Seconds ago')
+    # ylim_low = [-500, -500, 0]
+    # ylim_up = [500, 500, 1500]
+    # lines = []
+    # fig, axes = plt.subplots(3)
+    # for i, ax in enumerate(axes):
+    #     ax.set_ylim(ylim_low[i], ylim_up[i])
+    #     ax.set_xlim(0, max_sample_num)
+    #     l, = ax.plot(x, np.zeros(max_sample_num))
+    #     lines.append(l)
+        # ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: '{:.0f}s'.format(max_sample_num - x - 1))) #axis format
+    # plt.xlabel('Seconds ago')
     
     # List of Animation objects for tracking
-    ani = animation.FuncAnimation(fig, Animate, init_func=init, interval=50, blit=True, save_count=10)
-    plt.show()
+    # ani = animation.FuncAnimation(fig, Animate, init_func=init, interval=50, blit=True, save_count=10)
+    # plt.show()
 
-    p.join() # block and wait for child process end
-    print("server end. close")
+    # p.join() # block and wait for child process end
+    # print("server end. close")
+
+    # plt.close(fig)
+    HISTORY_SIZE = 20
+    # INTERVAL = 0.1
+
+    # Deque for X-Axis (time)
+    x_vals = deque(maxlen=HISTORY_SIZE)
+
+    # Deque for Y-Axis (accelerometer readings)
+    accel_x = deque(maxlen=HISTORY_SIZE)
+    accel_y = deque(maxlen=HISTORY_SIZE)
+    accel_z = deque(maxlen=HISTORY_SIZE)
+
+    gyro_x = deque(maxlen=HISTORY_SIZE)
+    gyro_y = deque(maxlen=HISTORY_SIZE)
+    gyro_z = deque(maxlen=HISTORY_SIZE)
+
+    # Create 3 side-by-side subplots
+    fig, ((ax1, ax2, ax3), (gx1, gx2, gx3)) = plt.subplots(2,3)
+
+    # Automatically adjust subplot parameters for nicer padding between plots
+    plt.tight_layout()
+
+
+    def animate(i, lis_of_sensor_data):
+        # Poll the LSM303AGR
+        # accel_data = [random.random(), random.random(), random.random()]
+        # print(sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], sensor_data[5])
+        accel_data = lis_of_sensor_data[:3]
+        gyro_data = lis_of_sensor_data[3:6]
+        # print(factor)
+        # gyro_data = 
+        # Add the X/Y/Z values to the accel arrays
+        accel_x.append(accel_data[0])
+        accel_y.append(accel_data[1])
+        accel_z.append(accel_data[2])
+        
+        gyro_x.append(gyro_data[0])
+        gyro_y.append(gyro_data[1])
+        gyro_z.append(gyro_data[2])
+
+        # Grab the datetime, auto-range based on length of accel_x array
+        x_vals = [datetime.datetime.now() + datetime.timedelta(seconds=i) for i in range(len(accel_x))]
+
+        # Clear all axis
+        ax1.cla()
+        ax2.cla()
+        ax3.cla()
+
+        gx1.cla()
+        gx2.cla()
+        gx3.cla()
+
+        # Set grid titles
+        ax1.set_title('acc X', fontsize=10)
+        ax2.set_title('acc Y', fontsize=10)
+        ax3.set_title('acc Z', fontsize=10)
+
+        gx1.set_title('gyro X', fontsize=10)
+        gx2.set_title('gyro Y', fontsize=10)
+        gx3.set_title('gyro Z', fontsize=10)
+
+        # Enable subplot grid lines
+        ax1.grid(True, linewidth=0.5, linestyle=':')
+        ax2.grid(True, linewidth=0.5, linestyle=':')   
+        ax3.grid(True, linewidth=0.5, linestyle=':')
+
+        gx1.grid(True, linewidth=0.5, linestyle=':')
+        gx2.grid(True, linewidth=0.5, linestyle=':')   
+        gx3.grid(True, linewidth=0.5, linestyle=':')
+
+        # Display the sub-plots
+        ax1.plot(x_vals, accel_x, color='r')
+        ax2.plot(x_vals, accel_y, color='g')
+        ax3.plot(x_vals, accel_z, color='b')
+
+        gx1.plot(x_vals, gyro_x, color='r')
+        gx2.plot(x_vals, gyro_y, color='g')
+        gx3.plot(x_vals, gyro_z, color='b')
+
+        # Pause the plot for INTERVAL seconds 
+        plt.pause(0.1)
+
+    ani = FuncAnimation(fig, animate, fargs=([lis_of_sensor_data]))
+    plt.show()
+    p.join()

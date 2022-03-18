@@ -256,15 +256,12 @@ private:
 
         while (true){
             if(!send_error&&send_toggle){
-                char acc_json[100];
+                char acc_json[200];
 
                 printf_sem.acquire();
-                if(sample_num==255){
-                    sample_num = 0;
-                }
-                else{
-                    ++sample_num;
-                }
+
+                ++sample_num;
+
                 BSP_ACCELERO_AccGetXYZ(pDataXYZ);
                 env_data["ACCELERO_X"] = pDataXYZ[0];
                 env_data["ACCELERO_Y"] = pDataXYZ[1];
@@ -279,10 +276,13 @@ private:
                 // nsapi_error_t response = _socket.send(env_data,len);
                 nsapi_size_t bytes_to_send  = sprintf(
                     acc_json,
-                    "{\"x\":%f, \"y\":%f, \"z\":%f, \"s\":%d}",
-                    (float)((int)(env_data["ACCELERO_X"]*10000)) / 10000,
-                    (float)((int)(env_data["ACCELERO_Y"]*10000)) / 10000, 
-                    (float)((int)(env_data["ACCELERO_Z"]*10000)) / 10000, 
+                    "{\"x_a\":%f, \"y_a\":%f, \"z_a\":%f, \"x_g\":%f, \"y_g\":%f, \"z_g\":%f, \"s\":%d}",
+                    env_data["ACCELERO_X"]*SCALE_MULTIPLIER,
+                    env_data["ACCELERO_Y"]*SCALE_MULTIPLIER, 
+                    env_data["ACCELERO_Z"]*SCALE_MULTIPLIER, 
+                    env_data["GYRO_X"],
+                    env_data["GYRO_Y"], 
+                    env_data["GYRO_Z"], 
                     sample_num
                 );
 
@@ -293,21 +293,14 @@ private:
                         printf("Error! _socket.send() returned: %d\r\n", bytes_sent);
                     } else {
                         printf("sent %d bytes\r\n", bytes_sent);
+                        printf("\"acc_x\":%.4f,\"acc_y\":%.4f,\"acc_z\":%.4f,\"gyro_x\":%.4f,\"gyro_y\":%.4f,\"gyro_z\":%.4f,\"sample\":%d\r\n", env_data["ACCELERO_X"], env_data["ACCELERO_Y"], env_data["ACCELERO_Z"], env_data["GYRO_X"], env_data["GYRO_Y"], env_data["GYRO_Z"], sample_num);
                     }
 
                     bytes_to_send -= bytes_sent;
                 }
-
-                // if (0 >= response){
-                //     printf("Error sending: %d\n", response);
-                //     send_error = true;
-                // }
-                // else{
-                //     printf("\"acc_x\":%.4f,\"acc_y\":%.4f,\"acc_z\":%.4f,\"acc_s\":%d\r\n", x, y, z, sample_num);
-                // }
                 printf_sem.release();
             }
-            ThisThread::sleep_for(1000);
+            ThisThread::sleep_for(2000);
         }
 
         printf_sem.acquire();
