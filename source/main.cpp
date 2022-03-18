@@ -22,6 +22,9 @@
 #include "stm32l475e_iot01_gyro.h"
 #include <cstdio>
 
+#include <map>
+#include <string>
+
 #define SCALE_MULTIPLIER 0.004
 
 #if MBED_CONF_APP_USE_TLS_SOCKET
@@ -47,8 +50,9 @@ class SocketDemo {
 
     bool send_error = false;
     bool send_toggle = true;
-    Thread thread_acc;
-    Thread thread_gyro;
+    // Thread thread_acc;
+    // Thread thread_gyro;
+    Thread thread_sensor;
     Thread thread_error;
     Thread thread_toggling;
 
@@ -154,8 +158,9 @@ public:
         
         button.fall(callback(this, &SocketDemo::button_pressed));
 
-        thread_acc.start(callback(this, &SocketDemo::send_acc_sensor));
-        thread_gyro.start(callback(this, &SocketDemo::send_gyro_sensor));
+        // thread_acc.start(callback(this, &SocketDemo::send_acc_sensor));
+        // thread_gyro.start(callback(this, &SocketDemo::send_gyro_sensor));
+        thread_sensor.start(callback(this, &SocketDemo::send_sensor));
         thread_error.start(callback(this, &SocketDemo::check_error));
         thread_toggling.start(callback(this, &SocketDemo::check_toggling));
 
@@ -234,6 +239,81 @@ private:
         printf("received %d bytes:\r\n%.*s\r\n\r\n", received_bytes, strstr(buffer, "\n") - buffer, buffer);
 
         return true;
+    }
+
+    void send_sensor(void){
+        BSP_ACCELERO_Init();
+        BSP_GYRO_Init();
+
+        uint8_t sample_num = 0;
+        int16_t pDataXYZ[3] = {0};
+        float pGyroDataXYZ[3] = {0};
+
+        std::map<std::string, float> env_data;
+        nsapi_size_or_error_t bytes_sent = 0;
+
+        _socket.set_blocking(1);
+
+        while (true){
+            if(!send_error&&send_toggle){
+                char acc_json[100];
+
+                printf_sem.acquire();
+                if(sample_num==255){
+                    sample_num = 0;
+                }
+                else{
+                    ++sample_num;
+                }
+                BSP_ACCELERO_AccGetXYZ(pDataXYZ);
+                env_data["ACCELERO_X"] = pDataXYZ[0];
+                env_data["ACCELERO_Y"] = pDataXYZ[1];
+                env_data["ACCELERO_Z"] = pDataXYZ[2];
+                BSP_GYRO_GetXYZ(pGyroDataXYZ);
+                env_data["GYRO_X"] = pGyroDataXYZ[0];
+                env_data["GYRO_Y"] = pGyroDataXYZ[1];
+                env_data["GYRO_Z"] = pGyroDataXYZ[2];
+                // float x = pDataXYZ[0]*SCALE_MULTIPLIER, y = pDataXYZ[1]*SCALE_MULTIPLIER, z = pDataXYZ[2]*SCALE_MULTIPLIER;
+                // int len = sprintf(acc_json,"{\"acc_x\":%f,\"acc_y\":%f,\"acc_z\":%f,\"acc_s\":%d}", x, y, z, sample_num);
+                // nsapi_error_t response = _socket.send(acc_json,len);
+                // nsapi_error_t response = _socket.send(env_data,len);
+                nsapi_size_t bytes_to_send  = sprintf(
+                    acc_json,
+                    "{\"x\":%f, \"y\":%f, \"z\":%f, \"s\":%d}",
+                    (float)((int)(env_data["ACCELERO_X"]*10000)) / 10000,
+                    (float)((int)(env_data["ACCELERO_Y"]*10000)) / 10000, 
+                    (float)((int)(env_data["ACCELERO_Z"]*10000)) / 10000, 
+                    sample_num
+                );
+
+                while (bytes_to_send) {
+                    printf("\r\nbytes to send: %d, bytes_sent: %d\r\n", bytes_to_send, bytes_sent);
+                    bytes_sent = _socket.send(acc_json, bytes_to_send);
+                    if (bytes_sent < 0) {
+                        printf("Error! _socket.send() returned: %d\r\n", bytes_sent);
+                    } else {
+                        printf("sent %d bytes\r\n", bytes_sent);
+                    }
+
+                    bytes_to_send -= bytes_sent;
+                }
+
+                // if (0 >= response){
+                //     printf("Error sending: %d\n", response);
+                //     send_error = true;
+                // }
+                // else{
+                //     printf("\"acc_x\":%.4f,\"acc_y\":%.4f,\"acc_z\":%.4f,\"acc_s\":%d\r\n", x, y, z, sample_num);
+                // }
+                printf_sem.release();
+            }
+            ThisThread::sleep_for(1000);
+        }
+
+        printf_sem.acquire();
+        printf("Send Sensor OK!!\r\n");
+        // _socket.close();
+        printf_sem.release();
     }
 
     void send_acc_sensor(void){

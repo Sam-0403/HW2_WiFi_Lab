@@ -52,3 +52,6 @@ class SocketDemo {
 2. `SocketDemo`中的`send_gyro_sensor`每秒會傳送一次3D gyroscope的資料
 3. 按下藍色按鍵可以toggle是否要傳送資料
 
+
+## 取得當前LAN中裝置的IP
+1. For WiFi: `ipconfig getifaddr en0`
