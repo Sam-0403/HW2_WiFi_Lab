@@ -18,15 +18,6 @@
 #include "wifi_helper.h"
 #include "mbed-trace/mbed_trace.h"
 
-#include "stm32l475e_iot01_accelero.h"
-#include "stm32l475e_iot01_gyro.h"
-#include <cstdio>
-
-#include <map>
-#include <string>
-
-#define SCALE_MULTIPLIER 0.004
-
 #if MBED_CONF_APP_USE_TLS_SOCKET
 #include "root_ca_cert.h"
 
@@ -35,9 +26,6 @@
 #endif
 #endif // MBED_CONF_APP_USE_TLS_SOCKET
 
-Semaphore printf_sem(1);
-InterruptIn button(BUTTON1);
-
 class SocketDemo {
     static constexpr size_t MAX_NUMBER_OF_ACCESS_POINTS = 10;
     static constexpr size_t MAX_MESSAGE_RECEIVED_LENGTH = 100;
@@ -45,21 +33,12 @@ class SocketDemo {
 #if MBED_CONF_APP_USE_TLS_SOCKET
     static constexpr size_t REMOTE_PORT = 443; // tls port
 #else
-    static constexpr size_t REMOTE_PORT = 65431; // standard HTTP port
+    static constexpr size_t REMOTE_PORT = 80; // standard HTTP port
 #endif // MBED_CONF_APP_USE_TLS_SOCKET
-
-    bool send_error = false;
-    bool send_toggle = true;
-    // Thread thread_acc;
-    // Thread thread_gyro;
-    Thread thread_sensor;
-    Thread thread_error;
-    Thread thread_toggling;
 
 public:
     SocketDemo() : _net(NetworkInterface::get_default_instance())
     {
-        
     }
 
     ~SocketDemo()
@@ -137,35 +116,15 @@ public:
 
         /* exchange an HTTP request and response */
 
-        // if (!send_http_request()) {
-        //     return;
-        // }
+        if (!send_http_request()) {
+            return;
+        }
 
-        // if (!receive_http_response()) {
-        //     return;
-        // }
+        if (!receive_http_response()) {
+            return;
+        }
 
-        // if(!send_acc_sensor()){
-        //     _socket.close();
-        //     printf("Sending Error\r\n");
-        //     return;
-        // }
-        // if(!send_gyro_sensor()){
-        //     _socket.close();
-        //     printf("Sending Error\r\n");
-        //     return;
-        // }
-        
-        button.fall(callback(this, &SocketDemo::button_pressed));
-
-        // thread_acc.start(callback(this, &SocketDemo::send_acc_sensor));
-        // thread_gyro.start(callback(this, &SocketDemo::send_gyro_sensor));
-
-        thread_sensor.start(callback(this, &SocketDemo::send_sensor));
-        thread_error.start(callback(this, &SocketDemo::check_error));
-        thread_toggling.start(callback(this, &SocketDemo::check_toggling));
-
-        // printf("Demo concluded successfully \r\n");        
+        printf("Demo concluded successfully \r\n");
     }
 
 private:
@@ -242,178 +201,6 @@ private:
         return true;
     }
 
-    void send_sensor(void){
-        BSP_ACCELERO_Init();
-        BSP_GYRO_Init();
-
-        uint8_t sample_num = 0;
-        int16_t pDataXYZ[3] = {0};
-        float pGyroDataXYZ[3] = {0};
-
-        std::map<std::string, float> env_data;
-        nsapi_size_or_error_t bytes_sent = 0;
-
-        _socket.set_blocking(1);
-
-        while (true){
-            if(!send_error&&send_toggle){
-                char acc_json[200];
-
-                printf_sem.acquire();
-
-                ++sample_num;
-
-                BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-                env_data["ACCELERO_X"] = pDataXYZ[0];
-                env_data["ACCELERO_Y"] = pDataXYZ[1];
-                env_data["ACCELERO_Z"] = pDataXYZ[2];
-                BSP_GYRO_GetXYZ(pGyroDataXYZ);
-                env_data["GYRO_X"] = pGyroDataXYZ[0];
-                env_data["GYRO_Y"] = pGyroDataXYZ[1];
-                env_data["GYRO_Z"] = pGyroDataXYZ[2];
-                nsapi_size_t bytes_to_send  = sprintf(
-                    acc_json,
-                    "{\"x_a\":%f, \"y_a\":%f, \"z_a\":%f, \"x_g\":%f, \"y_g\":%f, \"z_g\":%f, \"s\":%d}",
-                    env_data["ACCELERO_X"]*SCALE_MULTIPLIER,
-                    env_data["ACCELERO_Y"]*SCALE_MULTIPLIER, 
-                    env_data["ACCELERO_Z"]*SCALE_MULTIPLIER, 
-                    env_data["GYRO_X"],
-                    env_data["GYRO_Y"], 
-                    env_data["GYRO_Z"], 
-                    sample_num
-                );
-
-                while (bytes_to_send) {
-                    printf("\r\nbytes to send: %d, bytes_sent: %d\r\n", bytes_to_send, bytes_sent);
-                    bytes_sent = _socket.send(acc_json, bytes_to_send);
-                    if (bytes_sent < 0) {
-                        printf("Error! _socket.send() returned: %d\r\n", bytes_sent);
-                    } else {
-                        printf("sent %d bytes\r\n", bytes_sent);
-                        printf("\"acc_x\":%.4f,\"acc_y\":%.4f,\"acc_z\":%.4f,\"gyro_x\":%.4f,\"gyro_y\":%.4f,\"gyro_z\":%.4f,\"sample\":%d\r\n", env_data["ACCELERO_X"], env_data["ACCELERO_Y"], env_data["ACCELERO_Z"], env_data["GYRO_X"], env_data["GYRO_Y"], env_data["GYRO_Z"], sample_num);
-                    }
-
-                    bytes_to_send -= bytes_sent;
-                }
-                printf_sem.release();
-            }
-            ThisThread::sleep_for(500);
-        }
-
-        printf_sem.acquire();
-        printf("Send Sensor OK!!\r\n");
-        printf_sem.release();
-    }
-
-    void send_acc_sensor(void){
-        BSP_ACCELERO_Init();
-
-        uint8_t sample_num = 0;
-        int16_t pDataXYZ[3] = {0};
-
-        char acc_json[64];
-
-        _socket.set_blocking(1);
-
-        while (true){
-            if(!send_error&&send_toggle){
-                printf_sem.acquire();
-                if(sample_num==255){
-                    sample_num = 0;
-                }
-                else{
-                    ++sample_num;
-                }
-                BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-                float x = pDataXYZ[0]*SCALE_MULTIPLIER, y = pDataXYZ[1]*SCALE_MULTIPLIER, z = pDataXYZ[2]*SCALE_MULTIPLIER;
-                int len = sprintf(acc_json,"{\"acc_x\":%f,\"acc_y\":%f,\"acc_z\":%f,\"acc_s\":%d}", x, y, z, sample_num);
-                nsapi_error_t response = _socket.send(acc_json,len);
-                if (0 >= response){
-                    printf("Error sending: %d\n", response);
-                    send_error = true;
-                }
-                else{
-                    printf("\"acc_x\":%.4f,\"acc_y\":%.4f,\"acc_z\":%.4f,\"acc_s\":%d\r\n", x, y, z, sample_num);
-                }
-                printf_sem.release();
-            }
-            ThisThread::sleep_for(1000);
-        }
-
-        printf_sem.acquire();
-        printf("Send Accelerate Sensor OK!!\r\n");
-        // _socket.close();
-        printf_sem.release();
-    }
-
-    void send_gyro_sensor(void){
-        BSP_GYRO_Init();
-
-        uint8_t sample_num = 0;
-        float pGyroDataXYZ[3] = {0};
-
-        char gyro_json[64];
-
-        _socket.set_blocking(1);
-
-        while(true){
-            if(!send_error&&send_toggle){
-               printf_sem.acquire();
-                if(sample_num==255){
-                    sample_num = 0;
-                }
-                else{
-                    ++sample_num;
-                }
-                BSP_GYRO_GetXYZ(pGyroDataXYZ);
-                float x = pGyroDataXYZ[0], y = pGyroDataXYZ[0], z = pGyroDataXYZ[0];
-                int len = sprintf(gyro_json,"{\"gyro_x\":%.4f,\"gyro_y\":%.4f,\"gyro_z\":%.4f,\"gyro_s\":%d}", x, y, z, sample_num);
-                nsapi_error_t response = _socket.send(gyro_json,len);
-                if (0 >= response){
-                    printf("Error sending: %d\n", response);
-                    send_error = true;
-                }
-                else{
-                    printf("\"gyro_x\":%.4f,\"gyro_y\":%.4f,\"gyro_z\":%.4f,\"gyro_s\":%d\r\n", x, y, z, sample_num);
-                }
-                printf_sem.release();
-            }
-            ThisThread::sleep_for(1000);
-        }
-
-        printf_sem.acquire();
-        printf("Send Gyro Sensor OK!!\r\n");
-        // _socket.close();
-        printf_sem.release();
-    }
-
-    void check_error(void){
-        while (true) {
-            if(send_error){
-                _socket.close();
-                printf_sem.acquire();
-                printf("Socket Error!!\r\n");
-                printf_sem.release();
-            }
-            ThisThread::sleep_for(1000);
-        }
-    }
-
-    void check_toggling(void){
-        while (true) {
-            if(!send_toggle){
-                printf_sem.acquire();
-                printf("Toggling!!\r\n");
-                printf_sem.release();
-            }
-            ThisThread::sleep_for(1000);
-        }
-    }
-
-    void button_pressed(void){
-        send_toggle = !send_toggle;
-    }
-
     void wifi_scan()
     {
         WiFiInterface *wifi = _net->wifiInterface();
@@ -472,4 +259,6 @@ int main() {
     SocketDemo *example = new SocketDemo();
     MBED_ASSERT(example);
     example->run();
+
+    return 0;
 }

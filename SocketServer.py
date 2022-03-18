@@ -85,6 +85,7 @@ if __name__ == '__main__':
 
         # Grab the datetime, auto-range based on length of accel_x array
         x_vals = [datetime.datetime.now() + datetime.timedelta(seconds=i) for i in range(len(accel_x))]
+        print(x_vals)
 
         # Clear all axis
         ax1.cla()
