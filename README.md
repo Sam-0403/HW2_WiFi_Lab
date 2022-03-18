@@ -1,5 +1,11 @@
 # HW2 WiFi Lab
 
+## 影片與截圖
+
+[Demo影片](https://youtu.be/GKkmx6A7Pis)
+
+![截圖](./ES_HW2_Screenshot.jpg))  
+
 ## 修改mbed_app.json
 ```javascript
 ...
@@ -45,7 +51,7 @@ class SocketDemo {
 
 ## How to Run Code
 1. `pip3 install {需要的模組}`
-2. 運行`SocketServer.py`
+2. 運行`GUI-hw2.py`
 
 ## 功能介紹
 1. `SocketDemo`中的`send_acc_sensor`每秒會傳送一次3D accelerator的資料
@@ -55,3 +61,6 @@ class SocketDemo {
 
 ## 取得當前LAN中裝置的IP
 1. For WiFi: `ipconfig getifaddr en0`
+
+## 注意事項
+執行前需要刪除`/b04502136_using_C_hw2`，這部分是另外一位組員透過C與其他語言完成的GUI軟體。
