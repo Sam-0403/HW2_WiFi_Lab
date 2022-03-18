@@ -21,23 +21,25 @@ def SensorDataParser(lis_of_sensor_data):
         with conn:
             print('Connected by', addr)
             while True:
-                sensor_data = conn.recv(200).decode('utf-8')
+                sensor_data = conn.recv(1024).decode('utf-8')
                 print(sys.getsizeof(sensor_data))                 
                 print('Received from socket server : ', sensor_data)
     
-                sensor_data = json.loads(sensor_data)
-                tst = dict()
-                if (type(sensor_data) != type(tst)):
-                    print("Parsing error: sensor_data now should be a dictionary.")
-                    break
+                try:
+                    sensor_data = json.loads(sensor_data)
+                    tst = dict()
+                    if (type(sensor_data) != type(tst)):
+                        print("Parsing error: sensor_data now should be a dictionary.")
+                        break
 
-                lis_of_sensor_data[0] = float(sensor_data['x_a'])
-                lis_of_sensor_data[1] = float(sensor_data['y_a'])
-                lis_of_sensor_data[2] = float(sensor_data['z_a'])
-                lis_of_sensor_data[3] = float(sensor_data['x_g'])
-                lis_of_sensor_data[4] = float(sensor_data['y_g'])
-                lis_of_sensor_data[5] = float(sensor_data['z_g'])
-            
+                    lis_of_sensor_data[0] = float(sensor_data['x_a'])
+                    lis_of_sensor_data[1] = float(sensor_data['y_a'])
+                    lis_of_sensor_data[2] = float(sensor_data['z_a'])
+                    lis_of_sensor_data[3] = float(sensor_data['x_g'])
+                    lis_of_sensor_data[4] = float(sensor_data['y_g'])
+                    lis_of_sensor_data[5] = float(sensor_data['z_g'])
+                except:
+                    print("Fail to Parse Data")
             # conn.close()
             # print('client closed connection')
 
@@ -46,36 +48,7 @@ if __name__ == '__main__':
     p = Process(target=SensorDataParser, args=([lis_of_sensor_data]))
     p.start()
 
-    # Matpolib config, i from 0 to 3 allows x y z sensor data input.
-    # max_sample_num = 10
-    # x = np.arange(0, max_sample_num)
-
-    # data = []
-    # for i in range(3):
-    #     data.append(deque(np.zeros(max_sample_num), maxlen=max_sample_num))  # hold the last 10 values
-
-    # ylim_low = [-500, -500, 0]
-    # ylim_up = [500, 500, 1500]
-    # lines = []
-    # fig, axes = plt.subplots(3)
-    # for i, ax in enumerate(axes):
-    #     ax.set_ylim(ylim_low[i], ylim_up[i])
-    #     ax.set_xlim(0, max_sample_num)
-    #     l, = ax.plot(x, np.zeros(max_sample_num))
-    #     lines.append(l)
-        # ax.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: '{:.0f}s'.format(max_sample_num - x - 1))) #axis format
-    # plt.xlabel('Seconds ago')
-    
-    # List of Animation objects for tracking
-    # ani = animation.FuncAnimation(fig, Animate, init_func=init, interval=50, blit=True, save_count=10)
-    # plt.show()
-
-    # p.join() # block and wait for child process end
-    # print("server end. close")
-
-    # plt.close(fig)
     HISTORY_SIZE = 20
-    # INTERVAL = 0.1
 
     # Deque for X-Axis (time)
     x_vals = deque(maxlen=HISTORY_SIZE)
@@ -97,18 +70,15 @@ if __name__ == '__main__':
 
 
     def animate(i, lis_of_sensor_data):
-        # Poll the LSM303AGR
-        # accel_data = [random.random(), random.random(), random.random()]
-        # print(sensor_data[0], sensor_data[1], sensor_data[2], sensor_data[3], sensor_data[4], sensor_data[5])
         accel_data = lis_of_sensor_data[:3]
         gyro_data = lis_of_sensor_data[3:6]
-        # print(factor)
-        # gyro_data = 
+
         # Add the X/Y/Z values to the accel arrays
         accel_x.append(accel_data[0])
         accel_y.append(accel_data[1])
         accel_z.append(accel_data[2])
         
+        # Add the X/Y/Z values to the gyro arrays
         gyro_x.append(gyro_data[0])
         gyro_y.append(gyro_data[1])
         gyro_z.append(gyro_data[2])

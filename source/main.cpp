@@ -160,6 +160,7 @@ public:
 
         // thread_acc.start(callback(this, &SocketDemo::send_acc_sensor));
         // thread_gyro.start(callback(this, &SocketDemo::send_gyro_sensor));
+
         thread_sensor.start(callback(this, &SocketDemo::send_sensor));
         thread_error.start(callback(this, &SocketDemo::check_error));
         thread_toggling.start(callback(this, &SocketDemo::check_toggling));
@@ -300,7 +301,7 @@ private:
                 }
                 printf_sem.release();
             }
-            ThisThread::sleep_for(2000);
+            ThisThread::sleep_for(500);
         }
 
         printf_sem.acquire();
